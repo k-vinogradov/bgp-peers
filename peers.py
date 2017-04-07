@@ -1,5 +1,3 @@
-#!/home/kvinogradov/develop/virtualenvs/peers/bin/python
-
 import gspread
 import sys
 
