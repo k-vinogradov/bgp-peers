@@ -1,0 +1,17 @@
+
+!---------------------------------
+! Peer{% if configuration_type == 'group' %}-Group{% endif %} Router Configuration
+!---------------------------------
+
+router bgp 28769
+    address-family {{ protocol }} {% if vrf %}vrf {{ vrf }}{% endif %}
+        {% if configuration_type == 'group' %}neighbor {{ remote_ip }} peer-group {{ group_name }}{% endif %}
+        {% if configuration_type != 'grouped' %}neighbor {{ remote_ip }} remote-as {{ remote_as }}
+        neighbor {{ remote_ip }} description as{{ remote_as }} {{ type }}: {{ name }}, peer #{{ id }}
+        neighbor {{ remote_ip }} soft-reconfiguration inbound
+        neighbor {{ remote_ip }} route-map peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-in in
+        neighbor {{ remote_ip }} route-map peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-out out
+        neighbor {{ remote_ip }} maximum-prefix {{ max_prefix }}{% else %}neighbor {{ remote_ip }} peer-group {{ group_name }}{% endif %}
+        {% if configuration_type != 'group' %}neighbor {{ remote_ip }} activate
+        neighbor {{ remote_ip }} shutdown{% endif %}
+    exit-address-family

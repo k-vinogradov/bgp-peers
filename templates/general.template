@@ -1,0 +1,38 @@
+!--------------------------------------------------------------------------
+! General Access-Lists and Prefix-Lists which Define Main Routing Behavior
+!--------------------------------------------------------------------------
+
+ip access-list standard default
+    permit 0.0.0.0
+ip access-list standard not-any
+    deny   any
+
+ip prefix-list ge24 seq 5 permit 0.0.0.0/0 ge 25
+
+ipv6 prefix-list default6 seq 5 permit ::/0
+ipv6 prefix-list 6ge32 seq 5 permit ::/0 ge 33
+ipv6 prefix-list not-6-any seq 5 deny ::/0 le 128
+
+
+ip community-list standard forbid-any permit {{ as_number }}:65000
+ip community-list standard forbid-upstreams permit {{ as_number }}:65001
+ip community-list standard forbid-customers permit {{ as_number }}:65002
+ip community-list standard forbid-peerings permit {{ as_number }}:65003
+ip community-list 499 permit {{ as_number }}:.....
+
+! AS-path ACL 300 exclude locally originated prefixes
+
+ip as-path access-list 300 deny ^$
+
+{% if configuration_type != "grouped" %}
+!-----------------------------------
+! Peer Specific BGP Community Lists
+!-----------------------------------
+
+ip community-list standard forbid-peer-{{ id }} permit {{ as_number }}:640{{ id }}
+{% for i in range(1,6) %}ip community-list standard peer-{{ id }}-as-prepend-{{ i }} permit {{ as_number }}:64{{ i }}{{ "%02d"|format(id) }}
+{% endfor %}
+{% endif %}
+{% if type == "customer" %}
+ip as-path access-list 4{{ id }} permit _({{ remote_as }})$
+{% endif %}

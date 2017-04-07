@@ -1,0 +1,11 @@
+
+!-----------------------------------
+! Peer Specific BGP Community Lists
+!-----------------------------------
+
+ip community-list standard forbid-peer-{{ id }} permit {{ as_number }}:640{{ id }}
+ip community-list standard peer-{{ id }}-as-prepend-1 permit {{ as_number }}:641{{ "%02d"|format(id) }}
+ip community-list standard peer-{{ id }}-as-prepend-2 permit {{ as_number }}:642{{ "%02d"|format(id) }}
+ip community-list standard peer-{{ id }}-as-prepend-3 permit {{ as_number }}:643{{ "%02d"|format(id) }}
+ip community-list standard peer-{{ id }}-as-prepend-4 permit {{ as_number }}:644{{ "%02d"|format(id) }}
+ip community-list standard peer-{{ id }}-as-prepend-5 permit {{ as_number }}:645{{ "%02d"|format(id) }}

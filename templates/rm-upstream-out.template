@@ -1,0 +1,25 @@
+
+!---------------------------
+! Upstream Out-Route-Map
+!---------------------------
+{% if protocol == "ipv4" %}
+route-map peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-out deny 10
+    match ip address default
+route-map peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-out deny 20
+    match ip address prefix-list ge24
+{% elif protocol == "ipv6" %}
+route-map peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-out deny 10
+    match ipv6 address prefix-list default6
+route-map peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-out deny 20
+    match as-path 300
+    match ipv6 address prefix-list 6ge32
+{% endif %}
+route-map peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-out deny 30
+    match community forbid-any forbid-upstreams forbid-peer-{{ id }}
+{% for i in range(1, 6) %}route-map peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-out permit 10{{ i - 1 }}
+    match community peer-{{ id }}-as-prepend-{{ i }}
+    continue
+    set as-path prepend {{ (as_number + " ") * i }}
+{% endfor %}route-map peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-out permit 1000
+    set comm-list 499 delete
+route-map peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-out deny 10000

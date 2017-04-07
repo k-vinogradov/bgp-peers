@@ -1,0 +1,93 @@
+!--------------------------------------------------------------------------
+! General Access-Lists and Prefix-Lists which Define Main Routing Behavior
+!--------------------------------------------------------------------------
+
+ip access-list standard default
+permit 0.0.0.0
+
+ip prefix-list ge24 seq 5 permit 0.0.0.0/0 ge 25
+
+ipv6 prefix-list default6 seq 5 permit ::/0
+ipv6 prefix-list 6ge32 seq 5 permit ::/0 ge 33
+
+ip community-list standard forbid-any permit {{ as_number }}:65000
+ip community-list standard forbid-upstreams permit {{ as_number }}:65001
+ip community-list standard forbid-customers permit {{ as_number }}:65002
+ip community-list standard forbid-peerings permit {{ as_number }}:65003
+ip community-list 499 permit {{ as_number }}:.....
+
+! AS-path ACL 300 exclude locally originated prefixes
+
+ip as-path access-list 300 deny _({{ as_number }})$
+
+{% if configuration_type != "grouped" %}
+!-----------------------------------
+! Peer Specific BGP Community Lists
+!-----------------------------------
+
+ip community-list standard forbid-peer-{{ id }} permit {{ as_number }}:640{{ id }}
+ip community-list standard peer-{{ id }}-as-prepend-1 permit {{ as_number }}:641{{ "%02d"|format(id) }}
+ip community-list standard peer-{{ id }}-as-prepend-2 permit {{ as_number }}:642{{ "%02d"|format(id) }}
+ip community-list standard peer-{{ id }}-as-prepend-3 permit {{ as_number }}:643{{ "%02d"|format(id) }}
+ip community-list standard peer-{{ id }}-as-prepend-4 permit {{ as_number }}:644{{ "%02d"|format(id) }}
+ip community-list standard peer-{{ id }}-as-prepend-5 permit {{ as_number }}:645{{ "%02d"|format(id) }}
+{% endif %}
+
+{% if configuration_type != 'grouped' %}
+!-------------------
+! Inbound Route-Map
+!-------------------
+{% if type != 'upstream' %}
+route-map as{{ remote_as }}-peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-in deny 10
+    match ip address default
+{% endif %}{# type != 'upstream' #}
+route-map as{{ remote_as }}-peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-in permit 1000
+    set community 28769:65001 28769:65003
+route-map as{{ remote_as }}-peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-in deny 10000
+
+!-------------------
+! Inbound Route-Map
+!-------------------
+route-map as{{ remote_as }}-peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-out deny 10
+ match ip address prefix-list ge24
+route-map as{{ remote_as }}-peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-out deny 20
+ match community forbid-any forbid-peerings forbid-peer-{% PeerID %}
+route-map as{{ remote_as }}-peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-out permit 100
+ match community peer-{% PeerID %}-as-prepend-1
+ continue
+ set as-path prepend 28769
+route-map as{{ remote_as }}-peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-out permit 110
+ match community peer-{% PeerID %}-as-prepend-2
+ continue
+ set as-path prepend 28769 28769
+route-map as{{ remote_as }}-peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-out permit 120
+ match community peer-{% PeerID %}-as-prepend-3
+ continue
+ set as-path prepend 28769 28769 28769
+route-map as{{ remote_as }}-peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-out permit 130
+ match community peer-{% PeerID %}-as-prepend-4
+ continue
+ set as-path prepend 28769 28769 28769 28769
+route-map as{{ remote_as }}-peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-out permit 140
+ match community peer-{% PeerID %}-as-prepend-5
+ continue
+ set as-path prepend 28769 28769 28769 28769 28769
+route-map as{{ remote_as }}-peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-out permit 1000
+ set comm-list 499 delete
+route-map as{{ remote_as }}-peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-out deny 10000
+{% endif %}
+!----------------------
+! Router Configuration
+!----------------------
+
+router bgp 28769
+    address-family {{ protocol }} {% if vrf %}vrf {{ vrf }}{% endif %}
+        {% if configuration_type == 'group' %}neighbor {{ remote_ip }} peer-group{% endif %}
+        neighbor {{ remote_ip }} remote-as {{ remote_as }}
+        neighbor {{ remote_ip }} description as{{ remote_as }} {{ type }}: {{ name }}, peer #{{ id }}
+        neighbor {{ remote_ip }} soft-reconfiguration inbound
+        neighbor {{ remote_ip }} route-map as{{ remote_as }}-peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-in in
+        neighbor {{ remote_ip }} route-map as{{ remote_as }}-peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-out out
+        neighbor {{ remote_ip }} maximum-prefix {{ max_prefix }}
+        {% if configuration_type != 'group' %}neighbor {{ remote_ip }} shutdown{% endif %}
+    exit-address-family

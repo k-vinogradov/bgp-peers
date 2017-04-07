@@ -1,0 +1,14 @@
+
+!---------------------------
+! Peering In-Route-Map
+!---------------------------
+{% if protocol == "ipv4" %}
+route-map peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-in deny 10
+    match ip address default
+{% elif protocol == "ipv6" %}
+route-map peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-in deny 10
+    match ipv6 address prefix-list default6
+{% endif %}
+route-map peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-in permit 1000
+    set community 28769:65001 28769:65003
+route-map peer{% if configuration_type == 'group' %}-group{% endif %}-{{ id }}-in deny 10000
